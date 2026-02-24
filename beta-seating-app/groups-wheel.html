@@ -1,0 +1,83 @@
+<div class="groups-container">
+    <aside class="groups-sidebar">
+        <div class="groups-section">
+            <h3>Class Selection</h3>
+            <select id="classSelect" class="class-dropdown">
+                <option value="">Select a class...</option>
+            </select>
+            <button id="refreshClassesBtn" class="refresh-btn" title="Refresh classes">🔄 Refresh</button>
+        </div>
+
+        <div class="groups-section">
+            <h3>Available Students</h3>
+            <div id="studentsList" class="students-list"></div>
+        </div>
+
+        <div class="groups-section">
+            <h3>Constraints</h3>
+            <div id="groupsConstraintsList" class="constraints-list"></div>
+        </div>
+
+        <div class="groups-section">
+            <h3>Tools</h3>
+            <div class="tool-buttons">
+                <button id="createGroupsBtn" class="action-btn">➕ Create Groups</button>
+                <button id="spinWheelBtn" class="action-btn wheel-btn">🎡 Spin Wheel</button>
+            </div>
+        </div>
+    </aside>
+
+    <main class="groups-main">
+        <div class="panel" id="createGroupsPanel" style="display: none;">
+            <h2>Create Groups</h2>
+            <div class="panel-content">
+                <div class="form-group">
+                    <label for="groupSize">Group Size:</label>
+                    <div class="size-input-group">
+                        <input type="number" id="groupSize" min="1" max="20" value="4" step="1" />
+                        <button id="applyGroupSizeBtn" class="apply-btn">Apply</button>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted);">
+                        <input type="checkbox" id="applyConstraintsToGroups" style="margin: 0;" />
+                        Apply seating constraints
+                    </label>
+                </div>
+
+                <div id="groupsDisplay" class="groups-display"></div>
+
+                <div class="panel-actions">
+                    <button id="regenerateGroupsBtn" class="action-btn secondary">🔄 Regenerate</button>
+                    <button id="exportGroupsBtn" class="action-btn secondary">📋 Export Groups</button>
+                    <button id="backFromGroupsBtn" class="action-btn">← Back</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel" id="spinWheelPanel" style="display: none;">
+            <h2 style="text-align: center;">🎡 Spin the Wheel</h2>
+            <div class="panel-content">
+                <div class="wheel-container">
+                    <canvas id="wheelCanvas"></canvas>
+                    <button id="spinBtn" class="spin-btn">🎡 SPIN!</button>
+                </div>
+
+                <div id="wheelResult" class="wheel-result" style="display: none;">
+                    <h3>Selected Student</h3>
+                    <p id="selectedStudentName" class="selected-name"></p>
+                    <button id="removeFromWheelBtn" class="action-btn secondary" style="margin-top: 8px;">❌ Remove from Wheel</button>
+                    <button id="spinAgainBtn" class="action-btn">🎡 Spin Again</button>
+                    <button id="backFromWheelBtn" class="action-btn">← Back</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="emptyState" class="empty-state">
+            <div class="empty-icon">📚</div>
+            <h2>Select a tool to get started</h2>
+            <p>Choose "Create Groups" or "Spin Wheel" from the left sidebar</p>
+        </div>
+    </main>
+</div>

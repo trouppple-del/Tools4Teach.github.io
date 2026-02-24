@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tools4teaching.online</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="floating-toolbar">
+        <button id="exportPngBtn" class="toolbar-item export-seating-only" data-tooltip="Export seating plan as PNG image">🖼️</button>
+        <button id="saveSeatingBtn" class="toolbar-item export-seating-only" data-tooltip="Save your seating plan">💾</button>
+        <button id="exportLayoutBtn" class="toolbar-item export-seating-only" data-tooltip="Export layout as JSON file">⬇️</button>
+        <button id="importLayoutBtn" class="toolbar-item export-seating-only" data-tooltip="Import layout from JSON file">⬆️</button>
+        <button id="buyCoffeeBtn" class="toolbar-item" data-tooltip="Buy me a coffee ☕">☕</button>
+        <div class="toolbar-divider"></div>
+        <button class="toolbar-item" onclick="menuSelectTab('seating-plan')" data-tooltip="View and arrange student seating plans">📋</button>
+        <button class="toolbar-item" onclick="menuSelectTab('groups-wheel')" data-tooltip="Create groups or spin a wheel to select students">🎡</button>
+    </div>
+
+    <div id="sideMenu" class="side-menu"></div>
+
+    <div class="tab-wrapper">
+        <div class="tab-content active" id="seating-plan-tab">
+            <div id="seating-plan-content"></div>
+        </div>
+        <div class="tab-content" id="groups-wheel-tab">
+            <div id="groups-wheel-content"></div>
+        </div>
+    </div>
+
+    <script src="utils.js"></script>
+    <script src="canvas.js"></script>
+    <script src="ui.js"></script>
+    <script src="seating.js"></script>
+    <script src="events.js"></script>
+    <script src="script.js"></script>
+    <script src="groups-script.js"></script>
+</body>
+</html>
