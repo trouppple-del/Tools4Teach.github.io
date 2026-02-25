@@ -32,8 +32,12 @@ const state = {
     draggingStudentFrom: null,
     lastAction: null,
     history: [],
-    historyIndex: -1
+    historyIndex: -1,
+    alphabeticalSeating: false,
+    evenDistribution: false
 };
+
+const APP_VERSION = '1.0';
 
 // Undo/Redo system
 function pushHistory() {
@@ -91,8 +95,27 @@ let resizeTimer;
 
 
 function resizeCanvas() {
-    canvas.width = window.innerWidth - 320;
-    canvas.height = window.innerHeight;
+    const sidebar = document.querySelector('.sidebar');
+    const sidebarW = sidebar ? sidebar.offsetWidth : 320;
+    const cssWidth = Math.max(0, window.innerWidth - sidebarW);
+    const cssHeight = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
+
+    // Set CSS size (how it appears on page)
+    canvas.style.width = cssWidth + 'px';
+    canvas.style.height = cssHeight + 'px';
+
+    // Use bounding rect to get the exact rendered CSS pixel size (accounts for scrollbars)
+    const rect = canvas.getBoundingClientRect();
+    const rectW = Math.max(0.5, rect.width);
+    const rectH = Math.max(0.5, rect.height);
+
+    // Set backing store size for high-DPI clarity using exact rect values
+    canvas.width = Math.round(rectW * dpr);
+    canvas.height = Math.round(rectH * dpr);
+
+    // Reset transform and redraw
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     redrawCanvas();
 }
 
@@ -113,6 +136,13 @@ function saveState() {
         state.currentClass.textObjects = state.textObjects;
     }
     setLocalStorage('seatingAppClasses', state.classes);
+    
+    // Also save global constraints for groups app
+    const globalData = {
+        constraints: state.constraints
+    };
+    console.log('Saving global constraints:', globalData);
+    setLocalStorage('seatingAppData', globalData);
 }
 
 function saveSeatingPlan() {
@@ -295,16 +325,16 @@ function showClassContextMenu(event, classId) {
 let globalStudentId = Math.floor(Math.random() * 1000000000) + Date.now();
 
 function addStudent(name) {
-    if (!state.currentClass || !name.trim()) return;
-    
+    if (!state.currentClass || !name || name.trim().length === 0) return;
+
     const newStudent = {
         id: ++globalStudentId,
-        name: name.trim()
+        name: name.trim() // Keep spaces in middle but trim ends
     };
-    
+
     state.currentClass.students.push(newStudent);
     state.students.push(newStudent);
-    
+
     saveState();
     renderStudentList();
     renderClassList();
@@ -337,11 +367,71 @@ function renderStudentList() {
     noClassSelected.style.display = 'none';
     
     studentList.innerHTML = state.students.map(student => `
-        <div class="student-item">
-            <span>${student.name}</span>
-            <button onclick="removeStudent(${student.id})">✕</button>
+        <div class="student-item" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <span style="flex:1;cursor:pointer;" onclick="showPreferencesModal(${student.id})">${student.name}</span>
+            <div style="display:flex;gap:6px;align-items:center;">
+                <button title="Preferences" class="prefs-btn" onclick="event.stopPropagation(); showPreferencesModal(${student.id})">⚙️</button>
+                <button onclick="removeStudent(${student.id})">✕</button>
+            </div>
         </div>
     `).join('');
+}
+
+// Preferences modal for a student: suggest put-with and don't-put-with lists
+function showPreferencesModal(studentId) {
+    const student = state.students.find(s => s.id === studentId);
+    if (!student) return;
+
+    // Ensure arrays exist
+    student.preferWith = student.preferWith || [];
+    student.avoidWith = student.avoidWith || [];
+
+    const backdrop = document.createElement('div');
+    backdrop.style.cssText = `position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 999;`;
+
+    const modal = document.createElement('div');
+    modal.style.cssText = `position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; z-index: 1000; min-width: 360px;`;
+
+    // Build multi-select lists (checkboxes) for other students
+    let othersHtml = '';
+    state.students.forEach(s => {
+        if (s.id === studentId) return;
+        const checkedPref = (student.preferWith || []).includes(s.id) ? 'checked' : '';
+        const checkedAvoid = (student.avoidWith || []).includes(s.id) ? 'checked' : '';
+        othersHtml += `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+                <div style="flex:1">${s.name}</div>
+                <div style="display:flex;gap:8px;align-items:center">
+                    <label style="font-size:12px;color:var(--text-muted);">Put with <input type=\"checkbox\" class=\"pref-with\" data-id=\"${s.id}\" ${checkedPref}></label>
+                    <label style="font-size:12px;color:var(--text-muted);">Don't put with <input type=\"checkbox\" class=\"avoid-with\" data-id=\"${s.id}\" ${checkedAvoid}></label>
+                </div>
+            </div>
+        `;
+    });
+
+    modal.innerHTML = `
+        <h3 style="margin:0 0 12px 0;color:var(--text);">Preferences for ${student.name}</h3>
+        <p style="margin:0 0 12px 0;color:var(--text-muted);font-size:13px;">These are suggestions only, the generator will try to respect them but not guarantee them.</p>
+        <div style="max-height:300px;overflow:auto;margin-bottom:12px;">${othersHtml || '<p style="color:var(--muted)">No other students</p>'}</div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+            <button id="prefsCancel" style="padding:8px 12px;background:var(--secondary);border:none;border-radius:6px;cursor:pointer;color:var(--text);">Cancel</button>
+            <button id="prefsSave" style="padding:8px 12px;background:var(--primary);border:none;border-radius:6px;cursor:pointer;color:white;">Save</button>
+        </div>
+    `;
+
+    document.body.appendChild(backdrop);
+    document.body.appendChild(modal);
+
+    document.getElementById('prefsCancel').addEventListener('click', () => { backdrop.remove(); modal.remove(); });
+    document.getElementById('prefsSave').addEventListener('click', () => {
+        const newPref = Array.from(modal.querySelectorAll('.pref-with')).filter(i => i.checked).map(i => parseInt(i.dataset.id));
+        const newAvoid = Array.from(modal.querySelectorAll('.avoid-with')).filter(i => i.checked).map(i => parseInt(i.dataset.id));
+        student.preferWith = newPref;
+        student.avoidWith = newAvoid;
+        saveState();
+        backdrop.remove();
+        modal.remove();
+    });
 }
 
 function addConstraint(student1, student2) {
@@ -353,9 +443,6 @@ function addConstraint(student1, student2) {
     if (!existing) {
         const constraint = { student1, student2, type: state.constraintType };
         state.constraints.push(constraint);
-        if (state.currentClass) {
-            state.currentClass.constraints.push(constraint);
-        }
         saveState();
         renderConstraintsList();
     }
@@ -373,12 +460,36 @@ function removeConstraint(index) {
 function renderConstraintsList() {
     const constraintsList = document.getElementById('constraintsList');
     
-    if (state.constraints.length === 0) {
+    // Deduplicate constraints
+    const seen = new Set();
+    const deduplicatedConstraints = [];
+    
+    for (const constraint of state.constraints) {
+        const key = constraint.student1 < constraint.student2 
+            ? `${constraint.student1}-${constraint.student2}` 
+            : `${constraint.student2}-${constraint.student1}`;
+        
+        if (!seen.has(key)) {
+            seen.add(key);
+            deduplicatedConstraints.push(constraint);
+        }
+    }
+    
+    // Update state to remove duplicates
+    if (deduplicatedConstraints.length !== state.constraints.length) {
+        state.constraints = deduplicatedConstraints;
+        if (state.currentClass) {
+            state.currentClass.constraints = deduplicatedConstraints;
+        }
+        setLocalStorage('seatingAppClasses', state.classes);
+    }
+    
+    if (deduplicatedConstraints.length === 0) {
         constraintsList.innerHTML = '<div class="add-constraint" onclick="showConstraintModal()">+ Add Constraint</div>';
         return;
     }
     
-    const html = state.constraints.map((constraint, idx) => {
+    const html = deduplicatedConstraints.map((constraint, idx) => {
         const s1 = state.students.find(s => s.id === constraint.student1);
         const s2 = state.students.find(s => s.id === constraint.student2);
         const icon = constraint.type === 'separate' ? '≠' : '✓';
@@ -473,14 +584,17 @@ function showConstraintModal() {
 
 function drawGrid() {
     const gridSize = state.snapToGrid ? 20 : 50;
-    const gridColor = state.snapToGrid ? 'rgba(59, 130, 246, 0.15)' : 'rgba(0, 0, 0, 0.1)';
+    const bodyStyle = getComputedStyle(document.body);
+    const defaultGrid = state.snapToGrid ? 'rgba(59, 130, 246, 0.15)' : 'rgba(0, 0, 0, 0.1)';
+    const gridColorVar = (bodyStyle.getPropertyValue('--canvas-grid-line') || '').trim();
+    const gridColor = gridColorVar || defaultGrid;
     ctx.strokeStyle = gridColor;
     ctx.lineWidth = state.snapToGrid ? 1.5 : 1;
     
     const startX = Math.floor((-state.pan.x) / gridSize) * gridSize;
     const startY = Math.floor((-state.pan.y) / gridSize) * gridSize;
-    const endX = startX + canvas.width / state.scale + gridSize;
-    const endY = startY + canvas.height / state.scale + gridSize;
+    const endX = startX + (canvas.clientWidth) / state.scale + gridSize;
+    const endY = startY + (canvas.clientHeight) / state.scale + gridSize;
     
     for (let x = startX; x <= endX; x += gridSize) {
         ctx.beginPath();
@@ -500,7 +614,11 @@ function drawGrid() {
 function drawTable(table, isSelected = false) {
     ctx.save();
     
-    const baseColor = table.color || '#3b82f6';
+    const bodyStyle = getComputedStyle(document.body);
+    const isDarkMode = document.body.classList.contains('theme-dark');
+    const canvasTextColor = isDarkMode ? '#ffffff' : null;
+    const themeTableDefault = (bodyStyle.getPropertyValue('--table-default') || '').trim() || '#3b82f6';
+    const baseColor = table.color || themeTableDefault;
     const baseColorLight = baseColor + '1a'; // Add transparency
     
     if (table.type === 'square') {
@@ -552,7 +670,7 @@ function drawTable(table, isSelected = false) {
         }
         
         if (table.students && table.students.length > 0) {
-            ctx.fillStyle = '#1f2937';
+            ctx.fillStyle = canvasTextColor || '#1f2937';
             const fontSize = 12; // Fixed size regardless of rotation/zoom
             ctx.font = `${fontSize}px sans-serif`;
             ctx.textAlign = 'center';
@@ -568,7 +686,7 @@ function drawTable(table, isSelected = false) {
                 }
             });
         } else {
-            ctx.fillStyle = '#666666';
+            ctx.fillStyle = canvasTextColor || '#666666';
             ctx.font = 'bold 12px sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -601,7 +719,7 @@ function drawTable(table, isSelected = false) {
         ctx.fillText(`T${tableNum}`, x - r + 5, y - r + 5);
         
         if (table.students && table.students.length > 0) {
-            ctx.fillStyle = '#1f2937';
+            ctx.fillStyle = canvasTextColor || '#1f2937';
             const fontSize = 12; // Fixed size regardless of zoom
             ctx.font = `${fontSize}px sans-serif`;
             ctx.textAlign = 'center';
@@ -613,7 +731,7 @@ function drawTable(table, isSelected = false) {
                 ctx.fillText(student.name || 'Unknown', x, y + offset);
             });
         } else {
-            ctx.fillStyle = '#666666';
+            ctx.fillStyle = canvasTextColor || '#666666';
             ctx.font = 'bold 14px sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -626,6 +744,7 @@ function drawTable(table, isSelected = false) {
 
 function drawTextObject(textObj, isSelected = false) {
     ctx.save();
+    const isDarkMode = document.body.classList.contains('theme-dark');
     
     const x = (textObj.x + state.pan.x) * state.scale;
     const y = (textObj.y + state.pan.y) * state.scale;
@@ -650,13 +769,13 @@ function drawTextObject(textObj, isSelected = false) {
         ctx.fillRect(-width/2 - 4, -height/2 - 4, width, height);
         ctx.strokeRect(-width/2 - 4, -height/2 - 4, width, height);
         
-        ctx.fillStyle = textObj.color || '#000000';
+        ctx.fillStyle = textObj.color || (isDarkMode ? '#ffffff' : '#000000');
         ctx.fillText(textObj.text, -width/2, -height/2);
     } else {
         ctx.fillRect(x - 4, y - 4, width, height);
         ctx.strokeRect(x - 4, y - 4, width, height);
         
-        ctx.fillStyle = textObj.color || '#000000';
+        ctx.fillStyle = textObj.color || (isDarkMode ? '#ffffff' : '#000000');
         ctx.fillText(textObj.text, x, y);
     }
     
@@ -705,10 +824,25 @@ function drawPreview(x, y, w, h) {
 }
 
 function redrawCanvas() {
+    // Reset transform to clear device-pixel backing, then apply DPR transform
+    const dpr = window.devicePixelRatio || 1;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
+    // Scale so drawing commands use CSS pixels and are rendered crisply on high-DPI screens
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Fill background using CSS pixel dimensions and theme variable
+    const bodyStyle = getComputedStyle(document.body);
+    let canvasBg = (bodyStyle.getPropertyValue('--canvas-bg') || '').trim();
+    if (!canvasBg) canvasBg = '#ffffff';
+    // If canvasBg is a gradient, we can't use it directly on canvas; fall back to white for gradients
+    if (canvasBg.startsWith('linear-gradient') || canvasBg.startsWith('radial-gradient')) {
+        ctx.fillStyle = '#ffffff';
+    } else {
+        ctx.fillStyle = canvasBg;
+    }
+    ctx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+
     drawGrid();
     
     state.tables.forEach((table, idx) => {
@@ -746,11 +880,82 @@ function redrawCanvas() {
     // Display action in corner
     if (state.lastAction) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        ctx.fillRect(10, canvas.height - 40, 150, 35);
+        // Move the action box up to make room for the version badge at bottom-left
+        ctx.fillRect(10, canvas.clientHeight - 70, 150, 35);
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 12px sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(state.lastAction, 15, canvas.height - 18);
+        ctx.textBaseline = 'middle';
+        ctx.fillText(state.lastAction, 15, canvas.clientHeight - 52);
+    }
+
+    // Display version in bottom-left
+    const verText = `Beta v${APP_VERSION}`;
+    ctx.font = '10px sans-serif';
+    const verMetrics = ctx.measureText(verText || '');
+    const verW = Math.ceil((verMetrics.width || 0)) + 16;
+    const verH = 20;
+    const verX = 10;
+    const verY = canvas.clientHeight - verH - 10; // 10px margin from bottom
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(verX, verY, verW, verH);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(verText, verX + verW / 2, verY + verH / 2);
+
+    // If a student is being dragged on the canvas, draw a ghost name following the cursor
+    if (state.draggingStudentOnCanvas && state.draggingStudentFrom) {
+        try {
+            const from = state.draggingStudentFrom;
+            const table = state.tables[from.tableIdx];
+            let student = null;
+            if (table) {
+                if (from.studentId != null) {
+                    student = table.students.find(s => s.id === from.studentId) || table.students[from.studentIdx];
+                } else {
+                    student = table.students[from.studentIdx];
+                }
+            }
+            if (student) {
+                // Use currentMouseX/Y which are screen coords relative to canvas
+                const offset = state.dragGhostOffset || { x: 8, y: 8 };
+                const gx = state.currentMouseX + offset.x;
+                const gy = state.currentMouseY + offset.y;
+
+                ctx.save();
+                ctx.globalAlpha = 0.95;
+                ctx.fillStyle = 'rgba(255,255,255,0.95)';
+                ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+                ctx.lineWidth = 1;
+                ctx.font = 'bold 13px sans-serif';
+                const metrics = ctx.measureText(student.name || '');
+                const padX = 8;
+                const padY = 6;
+                const w = metrics.width + padX * 2;
+                const h = 18 + padY;
+                // Rounded rect
+                const r = 6;
+                ctx.beginPath();
+                ctx.moveTo(gx + r, gy);
+                ctx.arcTo(gx + w, gy, gx + w, gy + h, r);
+                ctx.arcTo(gx + w, gy + h, gx, gy + h, r);
+                ctx.arcTo(gx, gy + h, gx, gy, r);
+                ctx.arcTo(gx, gy, gx + w, gy, r);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                const _isDark = document.body.classList.contains('theme-dark');
+                ctx.fillStyle = _isDark ? '#ffffff' : '#0f172a';
+                ctx.textBaseline = 'middle';
+                ctx.textAlign = 'left';
+                ctx.fillText(student.name, gx + padX, gy + h / 2);
+                ctx.restore();
+            }
+        } catch (e) {
+            // ignore drawing errors
+        }
     }
 }
 
@@ -793,6 +998,47 @@ function getTableAt(x, y) {
             const dy = y - table.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist <= table.radius) {
+                return i;
+            }
+        }
+    }
+    return -1;
+}
+
+// Detect if a click (in screen/canvas coordinates) hit a student name inside a given table
+function detectStudentAt(tableIdx, screenX, screenY) {
+    const table = state.tables[tableIdx];
+    if (!table || !table.students || table.students.length === 0) return -1;
+
+    if (table.type === 'square') {
+        const sx = (table.x + state.pan.x) * state.scale;
+        const sy = (table.y + state.pan.y) * state.scale;
+        const w = (table.width || 50) * state.scale;
+        const h = (table.height || 50) * state.scale;
+
+        const fontSize = 12;
+        const startY = sy + 10;
+        const lineHeight = fontSize + 4;
+        const centerX = sx + w / 2;
+
+        for (let i = 0; i < table.students.length; i++) {
+            const nameY = startY + i * lineHeight;
+            if (screenY >= nameY && screenY <= nameY + lineHeight && Math.abs(screenX - centerX) <= w / 2) {
+                return i;
+            }
+        }
+    } else if (table.type === 'circle') {
+        const cx = (table.x + state.pan.x) * state.scale;
+        const cy = (table.y + state.pan.y) * state.scale;
+        const r = (table.radius || 30) * state.scale;
+        const fontSize = 12;
+        const maxNames = Math.floor((r * 2) / (fontSize + 4));
+        const visible = table.students.slice(0, maxNames);
+        for (let i = 0; i < visible.length; i++) {
+            const offset = (i - (visible.length - 1) / 2) * (fontSize + 4);
+            const nameY = cy + offset - (fontSize / 2);
+            const nameX = cx;
+            if (screenY >= nameY && screenY <= nameY + fontSize && Math.abs(screenX - nameX) <= r) {
                 return i;
             }
         }
@@ -883,9 +1129,23 @@ function generateSeatingPlan() {
         return;
     }
 
-    // Clear non-locked students from all tables
+    // Warn if total capacity is less than number of students
+    const totalCapacity = state.tables.reduce((sum, t) => sum + (t.capacity || 0), 0);
+    if (totalCapacity < state.students.length) {
+        const proceed = confirm(`Warning: total seats (${totalCapacity}) is less than the number of students (${state.students.length}).\nThe generator will try but some students may be left unplaced. Continue?`);
+        if (!proceed) return;
+    }
+
+    // Clear non-locked students from all tables, and also clear students in together groups
+    const togetherStudentIds = new Set();
+    for (const c of state.constraints) {
+        if (c.type === 'together') {
+            togetherStudentIds.add(c.student1);
+            togetherStudentIds.add(c.student2);
+        }
+    }
     state.tables.forEach(t => {
-        t.students = t.students.filter(s => s.locked);
+        t.students = t.students.filter(s => s.locked && !togetherStudentIds.has(s.id));
     });
 
     // Build together groups
@@ -913,7 +1173,12 @@ function generateSeatingPlan() {
 
         // Find a table that fits all group members
         let foundTable = false;
-        for (const table of state.tables) {
+        // Sort tables by occupancy for even distribution, or shuffle for randomness
+        const tablesToCheck = state.evenDistribution 
+            ? [...state.tables].sort((a, b) => a.students.length - b.students.length)
+            : [...state.tables].sort(() => Math.random() - 0.5);
+        
+        for (const table of tablesToCheck) {
             const space = table.capacity - table.students.length;
             if (space < members.length) continue;
 
@@ -941,10 +1206,15 @@ function generateSeatingPlan() {
     // PHASE 2: Place remaining individual students
     const unplaced = state.students.filter(s => !placed.has(s.id));
     
-    // Shuffle for randomness
-    for (let i = unplaced.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [unplaced[i], unplaced[j]] = [unplaced[j], unplaced[i]];
+    // Sort or shuffle students
+    if (state.alphabeticalSeating) {
+        unplaced.sort((a, b) => a.name.localeCompare(b.name));
+    } else {
+        // Shuffle for randomness
+        for (let i = unplaced.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [unplaced[i], unplaced[j]] = [unplaced[j], unplaced[i]];
+        }
     }
 
     for (const student of unplaced) {
@@ -971,14 +1241,44 @@ function generateSeatingPlan() {
             }
         }
 
-        // If not placed with group, find any valid table
+        // If not placed with group, find best-scoring valid table using preferences (suggestion only)
         if (!placed_here) {
-            for (const table of state.tables) {
-                if (table.students.length < table.capacity && canPlaceAtTable(student, table)) {
-                    table.students.push({ ...student, locked: false });
-                    placed.add(student.id);
-                    break;
+            const tablesToCheck = state.evenDistribution 
+                ? [...state.tables].sort((a, b) => a.students.length - b.students.length)
+                : [...state.tables];
+
+            // Compute candidate tables and pick best score
+            let best = null;
+            let bestScore = -Infinity;
+            for (const table of tablesToCheck) {
+                if (table.students.length >= table.capacity) continue;
+                if (!canPlaceAtTable(student, table)) continue;
+
+                // Score based on preferences (preferWith/avoidWith). These are suggestions, not hard-blocks.
+                let score = 0;
+                if (student.preferWith && student.preferWith.length > 0) {
+                    for (const pid of student.preferWith) {
+                        if (table.students.some(ts => ts.id === pid)) score += 10;
+                    }
                 }
+                if (student.avoidWith && student.avoidWith.length > 0) {
+                    for (const aid of student.avoidWith) {
+                        if (table.students.some(ts => ts.id === aid)) score -= 8;
+                    }
+                }
+
+                // Slight prefer emptier tables if evenDistribution is true
+                score += state.evenDistribution ? (10 - table.students.length) : 0;
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = table;
+                }
+            }
+
+            if (best) {
+                best.students.push({ ...student, locked: false });
+                placed.add(student.id);
             }
         }
     }
@@ -1089,10 +1389,13 @@ function renderSeatingPlan() {
     seatingPlan.innerHTML = state.tables.map((table, tIdx) => {
         const studentsHtml = table.students.map((s, sIdx) => `
             <div class="seating-student" draggable="true" data-table="${tIdx}" data-student="${sIdx}" style="display: flex; justify-content: space-between; align-items: center; padding: 4px; background: var(--surface-light); margin: 2px 0; border-radius: 3px; cursor: move;">
-                <span>${s.name}</span>
-                <button class="lock-btn" onclick="toggleStudentLock(${tIdx}, ${sIdx})" title="${s.locked ? 'Unlock student from randomization' : 'Lock student to stay in place'}" style="background: none; border: none; padding: 0; cursor: pointer; color: var(--text-muted); font-size: 12px;">
-                    ${s.locked ? '🔒' : '🔓'}
-                </button>
+                <span style="flex:1;cursor:pointer;" onclick="event.stopPropagation(); showPreferencesModal(${s.id})">${s.name}</span>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <button class="prefs-btn" onclick="event.stopPropagation(); showPreferencesModal(${s.id})" title="Preferences">⚙️</button>
+                    <button class="lock-btn" onclick="toggleStudentLock(${tIdx}, ${sIdx})" title="${s.locked ? 'Unlock student from randomization' : 'Lock student to stay in place'}" style="background: none; border: none; padding: 0; cursor: pointer; color: var(--text-muted); font-size: 12px;">
+                        ${s.locked ? '🔒' : '🔓'}
+                    </button>
+                </div>
             </div>
         `).join('');
         
@@ -1111,12 +1414,16 @@ function renderSeatingPlan() {
         el.addEventListener('dragstart', (e) => {
             const tableIdx = parseInt(e.currentTarget.dataset.table);
             const studentIdx = parseInt(e.currentTarget.dataset.student);
-            state.draggingStudentFrom = { tableIdx, studentIdx };
+            const student = state.tables[tableIdx] && state.tables[tableIdx].students[studentIdx];
+            state.draggingStudentFrom = { tableIdx, studentIdx, studentId: student && student.id };
             e.dataTransfer.effectAllowed = 'move';
         });
         
         el.addEventListener('dragend', () => {
             state.draggingStudentFrom = null;
+            state.draggingStudentOnCanvas = false;
+            state.dragGhostOffset = null;
+            redrawCanvas();
         });
     });
     
@@ -1140,17 +1447,45 @@ function renderSeatingPlan() {
                 const toIdx = idx;
                 
                 if (fromIdx !== toIdx) {
-                    const student = state.tables[fromIdx].students[studentIdx];
-                    state.tables[fromIdx].students.splice(studentIdx, 1);
-                    state.tables[toIdx].students.push(student);
-                    saveState();
-                    saveSeatingPlan();
-                    renderSeatingPlan();
-                    redrawCanvas();
+                    // Remove by id when available to avoid index mismatch
+                    const fromTable = state.tables[fromIdx];
+                    if (fromTable) {
+                        const si = fromTable.students.findIndex(s => s.id === state.draggingStudentFrom.studentId);
+                        const removeIdx = si >= 0 ? si : studentIdx;
+                        const student = fromTable.students.splice(removeIdx, 1)[0];
+                        if (student) {
+                            state.tables[toIdx].students.push(student);
+                            saveState();
+                            saveSeatingPlan();
+                            renderSeatingPlan();
+                            redrawCanvas();
+                        }
+                    }
                 }
                 state.draggingStudentFrom = null;
+                state.draggingStudentOnCanvas = false;
+                state.dragGhostOffset = null;
             }
         });
+    });
+
+    // Ensure canvas accepts HTML5 drops and clears ghost state when a drop ends
+    canvas.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+    canvas.addEventListener('drop', (e) => {
+        e.preventDefault();
+        // If there was a sidebar drag, a drop on canvas should just clear any ghost state
+        state.draggingStudentFrom = state.draggingStudentFrom || null;
+        state.draggingStudentOnCanvas = false;
+        state.dragGhostOffset = null;
+        redrawCanvas();
+    });
+
+    // Global dragend to ensure ghost clears if the drag finishes outside
+    document.addEventListener('dragend', () => {
+        state.draggingStudentFrom = null;
+        state.draggingStudentOnCanvas = false;
+        state.dragGhostOffset = null;
+        redrawCanvas();
     });
 }
 
@@ -1164,6 +1499,12 @@ function toggleStudentLock(tableIdx, studentIdx) {
     renderSeatingPlan();
 }
 function exportPNG() {
+    // Simply export the canvas as is
+    performPNGExport();
+}
+
+function performPNGExport() {
+    // Simply capture the canvas as is
     const link = document.createElement('a');
     link.href = canvas.toDataURL('image/png');
     link.download = `seating-plan-${Date.now()}.png`;
@@ -1506,6 +1847,8 @@ function selectTool(toolName, toolDisplay) {
     if (btn) btn.classList.add('active');
     if (toolName === 'hand') canvas.style.cursor = 'grab';
     redrawCanvas();
+    // Recompute contrast for tool buttons after active class changes
+    if (typeof updateContrastForAll === 'function') updateContrastForAll();
     setTimeout(() => { state.lastAction = null; redrawCanvas(); }, 1500);
 }
 
@@ -1587,7 +1930,9 @@ if (colorPickerBtn) {
             btn.title = colorNames[idx];
             btn.addEventListener('click', () => {
                 state.currentColor = color;
-                colorPickerBtn.style.backgroundColor = color;
+                    colorPickerBtn.style.backgroundColor = color;
+                    // ensure the picker button text/icon contrasts with chosen color
+                    updateContrastForElement(colorPickerBtn);
                 saveState();
                 backdrop.remove();
                 modal.remove();
@@ -1610,7 +1955,119 @@ if (colorPickerBtn) {
     
     // Set initial button color
     colorPickerBtn.style.backgroundColor = state.currentColor || '#ef4444';
+    // set proper contrast on load
+    updateContrastForElement(colorPickerBtn);
 }
+
+// Contrast helpers: choose black or white text depending on background brightness
+function parseRGBString(rgbStr) {
+    // handles "rgb(r, g, b)" and "rgba(r, g, b, a)"
+    const m = rgbStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+    if (!m) return null;
+    return [parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10)];
+}
+
+function hexToRgb(hex) {
+    const h = hex.replace('#', '');
+    if (h.length === 3) {
+        return [parseInt(h[0]+h[0],16), parseInt(h[1]+h[1],16), parseInt(h[2]+h[2],16)];
+    }
+    return [parseInt(h.substring(0,2),16), parseInt(h.substring(2,4),16), parseInt(h.substring(4,6),16)];
+}
+
+function getElementBackgroundRgb(el) {
+    const cs = getComputedStyle(el);
+    const bg = cs.backgroundColor || cs.background;
+    if (!bg) return null;
+    if (bg.startsWith('rgb')) return parseRGBString(bg);
+    // try hex from inline style
+    const inlineBg = el.style.backgroundColor || el.style.background;
+    if (inlineBg && inlineBg.startsWith('#')) return hexToRgb(inlineBg);
+    // try to parse CSS variable if present (computed styles should resolve it)
+    if (bg && bg.startsWith('var(')) return null;
+    return null;
+}
+
+function pickContrastColorForRgb(rgb) {
+    if (!rgb) return 'black';
+    const [r,g,b] = rgb;
+    // perceived brightness formula
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness > 180 ? 'black' : 'white';
+}
+
+function updateContrastForElement(el) {
+    try {
+        // Skip data-contrast for active buttons - let CSS handle their colors
+        if (el.classList.contains('active')) {
+            el.removeAttribute('data-contrast');
+            return;
+        }
+        const rgb = getElementBackgroundRgb(el) || parseRGBString(getComputedStyle(el).backgroundColor || 'rgb(255,255,255)');
+        const fg = pickContrastColorForRgb(rgb);
+        // use data-contrast attribute instead of inline style to avoid stale inline colors
+        el.setAttribute('data-contrast', fg);
+        // remove any lingering inline color which would override data-contrast CSS
+        try { el.style.removeProperty('color'); } catch (e) {}
+    } catch (e) {
+        // fallback
+        el.removeAttribute('data-contrast');
+    }
+}
+
+function updateContrastForAll() {
+    // target only the truly dynamic buttons that need contrast calculation
+    // Skip tool-btn, toolbar-item, menu-item, constraint-type-btn - they use theme colors via CSS
+    const selectors = ['#colorPickerBtn', '.export-btn', '.wheel-btn', '.primary-btn'];
+    selectors.forEach(sel => {
+        document.querySelectorAll(sel).forEach(el => updateContrastForElement(el));
+    });
+    // also any button with inline background-color
+    document.querySelectorAll('button[style*="background-color"], [style*="background-color"]').forEach(el => updateContrastForElement(el));
+}
+
+// Observe theme changes (body class) and update contrasts
+const bodyObserver = new MutationObserver(muts => {
+    for (const m of muts) {
+        if (m.attributeName === 'class') updateContrastForAll();
+    }
+});
+bodyObserver.observe(document.body, { attributes: true });
+
+// run on initial load
+updateContrastForAll();
+
+// Zoom controls
+const zoomInBtn = document.getElementById('zoomInBtn');
+const zoomOutBtn = document.getElementById('zoomOutBtn');
+const faqBtn = document.getElementById('faqBtn');
+
+function clamp(v, a, b) { return Math.min(b, Math.max(a, v)); }
+
+function zoomBy(factor) {
+    const prev = state.scale;
+    const min = 0.4;
+    const max = 3;
+    const newScale = clamp(prev * factor, min, max);
+    if (newScale === prev) return;
+
+    // keep canvas center stable
+    const cx = canvas.clientWidth / 2;
+    const cy = canvas.clientHeight / 2;
+    const worldX = (cx / prev) - state.pan.x;
+    const worldY = (cy / prev) - state.pan.y;
+
+    state.scale = newScale;
+    state.pan.x = (cx / state.scale) - worldX;
+    state.pan.y = (cy / state.scale) - worldY;
+    redrawCanvas();
+}
+
+if (zoomInBtn) zoomInBtn.addEventListener('click', () => zoomBy(1.2));
+if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => zoomBy(1 / 1.2));
+if (faqBtn) faqBtn.addEventListener('click', () => {
+    window.open('https://youtube.com', '_blank');
+});
 
 const allowMultipleSelected = document.getElementById('allowMultipleSelected');
 if (allowMultipleSelected) {
@@ -1634,6 +2091,20 @@ if (generateSeatingBtn) {
 const randomizeBtn = document.getElementById('randomizeBtn');
 if (randomizeBtn) {
     randomizeBtn.addEventListener('click', generateSeatingPlan);
+}
+
+const alphabeticalSeatingCheckbox = document.getElementById('alphabeticalSeating');
+if (alphabeticalSeatingCheckbox) {
+    alphabeticalSeatingCheckbox.addEventListener('change', (e) => {
+        state.alphabeticalSeating = e.target.checked;
+    });
+}
+
+const evenDistributionCheckbox = document.getElementById('evenDistribution');
+if (evenDistributionCheckbox) {
+    evenDistributionCheckbox.addEventListener('change', (e) => {
+        state.evenDistribution = e.target.checked;
+    });
 }
 
 const clearCanvasBtn = document.getElementById('clearCanvasBtn');
@@ -1663,13 +2134,17 @@ const saveSeatingBtn = document.getElementById('saveSeatingBtn');
 if (saveSeatingBtn) {
     saveSeatingBtn.addEventListener('click', () => {
         saveSeatingPlan();
-        // Show brief feedback
+        // Show brief checkmark feedback
         const originalText = saveSeatingBtn.textContent;
-        saveSeatingBtn.textContent = '✓ Saved';
+        saveSeatingBtn.textContent = '✓';
         saveSeatingBtn.style.backgroundColor = 'var(--success, #10b981)';
+        saveSeatingBtn.style.borderColor = 'var(--success, #10b981)';
+        saveSeatingBtn.style.color = 'white';
         setTimeout(() => {
             saveSeatingBtn.textContent = originalText;
             saveSeatingBtn.style.backgroundColor = '';
+            saveSeatingBtn.style.borderColor = '';
+            saveSeatingBtn.style.color = '';
         }, 1500);
     });
 }
@@ -1684,6 +2159,13 @@ if (importLayoutBtn) {
     importLayoutBtn.addEventListener('click', importLayout);
 }
 
+const buyCoffeeBtn = document.getElementById('buyCoffeeBtn');
+if (buyCoffeeBtn) {
+    buyCoffeeBtn.addEventListener('click', () => {
+        window.open('https://www.buymeacoffee.com/', '_blank');
+    });
+}
+
 // Auto-save seating plan every minute
 setInterval(() => {
     if (state.currentClass && state.tables.length > 0) {
@@ -1691,100 +2173,35 @@ setInterval(() => {
     }
 }, 60000);
 
-// FAQ Help functionality
-const helpBtn = document.getElementById('helpBtn');
-if (helpBtn) {
-    helpBtn.addEventListener('click', () => {
-        showFAQ();
-    });
-}
-
-function showFAQ() {
-    const backdrop = document.createElement('div');
-    backdrop.style.cssText = `
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.5); z-index: 999; cursor: default;
-    `;
-    backdrop.id = 'faqBackdrop';
-    
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-        padding: 24px; z-index: 1000; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; color: var(--text);
-    `;
-    modal.id = 'faqModal';
-    
-    modal.innerHTML = `
-        <h2 style="margin: 0 0 16px 0; color: var(--text);">FAQ & Help</h2>
-        
-        <div style="display: flex; flex-direction: column; gap: 16px;">
-            <div>
-                <h3 style="margin: 0 0 8px 0; color: var(--primary); font-size: 14px;">Where are the names stored?</h3>
-                <p style="margin: 0; color: var(--text-muted); font-size: 13px;">The names are stored only on your device specifically in your browser's cache (localStorage). No one else has access to your data. When you clear your browser cache, the data will be deleted.</p>
-            </div>
-            
-            <div>
-                <h3 style="margin: 0 0 8px 0; color: var(--primary); font-size: 14px;">How do I randomize seating?</h3>
-                <p style="margin: 0; color: var(--text-muted); font-size: 13px;">After creating tables and adding students, click the red "RANDOMIZE!" button to automatically assign students to tables. You can use constraints (Separate/Together) to keep certain students apart or together.</p>
-            </div>
-            
-            <div>
-                <h3 style="margin: 0 0 8px 0; color: var(--primary); font-size: 14px;">How do I save my layout?</h3>
-                <p style="margin: 0; color: var(--text-muted); font-size: 13px;">Click the "⬇️ Export Layout" button to download your layout as a JSON file. Use "⬆️ Import Layout" to restore it later. Your seating plan is automatically saved to your device.</p>
-            </div>
-            
-            <div>
-                <h3 style="margin: 0 0 8px 0; color: var(--primary); font-size: 14px;">How do I change table colors?</h3>
-                <p style="margin: 0; color: var(--text-muted); font-size: 13px;">Use the color picker button (colored circle) in the Tools section. Select a color, then use the Paint Bucket tool (P key) to click on a table to change its color.</p>
-            </div>
-            
-            <div>
-                <h3 style="margin: 0 0 8px 0; color: var(--primary); font-size: 14px;">What keyboard shortcuts are available?</h3>
-                <p style="margin: 0; color: var(--text-muted); font-size: 13px;"><strong>S</strong>=Square, <strong>C</strong>=Circle, <strong>M</strong>=Move, <strong>D</strong>=Duplicate, <strong>G</strong>=Delete, <strong>H</strong>=Hand, <strong>T</strong>=Text, <strong>R</strong>=Rotate, <strong>B</strong>=Scale, <strong>P</strong>=Paint Bucket. Use <strong>Ctrl+Z</strong> to undo and <strong>Ctrl+Y</strong> to redo. Use <strong>Ctrl+C</strong> to copy and <strong>Ctrl+V</strong> to paste selected objects. Press <strong>Delete</strong> or <strong>Backspace</strong> to delete selected objects.</p>
-            </div>
-            
-            <div>
-                <h3 style="margin: 0 0 8px 0; color: var(--primary); font-size: 14px;">How do I drag students in the seating plan?</h3>
-                <p style="margin: 0; color: var(--text-muted); font-size: 13px;">In the "Seating Plan" section on the left, you can drag any student name from one table to another. You can also lock students (🔒) to prevent them from being randomized.</p>
-            </div>
-        </div>
-        
-        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
-            <button onclick="closeFAQ()" style="padding: 8px 16px; background: var(--surface-light); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; color: var(--text);">Close</button>
-        </div>
-    `;
-    
-    document.body.appendChild(backdrop);
-    document.body.appendChild(modal);
-    
-    backdrop.addEventListener('click', closeFAQ);
-}
-
-function closeFAQ() {
-    const modal = document.getElementById('faqModal');
-    const backdrop = document.getElementById('faqBackdrop');
-    if (modal) modal.remove();
-    if (backdrop) backdrop.remove();
-}
 
 const addSeparateBtn = document.getElementById('addSeparateBtn');
 const addTogetherBtn = document.getElementById('addTogetherBtn');
 
+console.log('Constraint buttons:', { addSeparateBtn, addTogetherBtn });
+
 if (addSeparateBtn) {
-    addSeparateBtn.addEventListener('click', () => {
+    addSeparateBtn.addEventListener('click', (e) => {
+        console.log('Separate button clicked');
+        e.preventDefault();
+        e.stopPropagation();
         state.constraintType = 'separate';
         addSeparateBtn.classList.add('active');
         if (addTogetherBtn) addTogetherBtn.classList.remove('active');
+        console.log('About to show constraint modal');
+        showConstraintModal();
     });
 }
 
 if (addTogetherBtn) {
-    addTogetherBtn.addEventListener('click', () => {
+    addTogetherBtn.addEventListener('click', (e) => {
+        console.log('Together button clicked');
+        e.preventDefault();
+        e.stopPropagation();
         state.constraintType = 'together';
         addTogetherBtn.classList.add('active');
         if (addSeparateBtn) addSeparateBtn.classList.remove('active');
+        console.log('About to show constraint modal');
+        showConstraintModal();
     });
 }
 
@@ -1793,6 +2210,8 @@ canvas.addEventListener('mousedown', (e) => {
     const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) / state.scale - state.pan.x;
     const y = (e.clientY - rect.top) / state.scale - state.pan.y;
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
     
     if (e.button === 2) {
         state.panStart = { x: e.clientX, y: e.clientY, panX: state.pan.x, panY: state.pan.y };
@@ -1807,10 +2226,37 @@ canvas.addEventListener('mousedown', (e) => {
         return;
     }
     
-    // Default tool - handle text and table selection/manipulation
-    if (!state.currentTool || state.currentTool === 'select') {
+    // Default tool - handle student dragging on canvas, text and table selection/manipulation
+    if (!state.currentTool || state.currentTool === 'select' || state.currentTool === 'dragnames') {
         const tableIdx = getTableAt(x, y);
         if (tableIdx >= 0) {
+            // Check if click hit a student name inside this table (canvas coordinates)
+            const studentIdx = detectStudentAt(tableIdx, screenX, screenY);
+            if (studentIdx >= 0) {
+                const studentObj = state.tables[tableIdx].students[studentIdx];
+                state.draggingStudentFrom = { tableIdx, studentIdx, studentId: studentObj && studentObj.id };
+                state.draggingStudentOnCanvas = true;
+                // Compute a ghost offset so the label centers under the cursor
+                try {
+                    const student = state.tables[tableIdx].students[studentIdx];
+                    const font = 'bold 13px sans-serif';
+                    ctx.save();
+                    ctx.font = font;
+                    const metrics = ctx.measureText(student.name || '');
+                    const padX = 8;
+                    const padY = 6;
+                    const w = metrics.width + padX * 2;
+                    const h = 18 + padY;
+                    state.dragGhostOffset = { x: -w / 2, y: -h / 2 };
+                    ctx.restore();
+                } catch (e) {
+                    state.dragGhostOffset = { x: 8, y: 8 };
+                }
+                canvas.style.cursor = 'grabbing';
+                redrawCanvas();
+                return;
+            }
+
             state.selectedTableIndex = tableIdx;
             state.draggingTableIndex = tableIdx;
             redrawCanvas();
@@ -1951,6 +2397,10 @@ canvas.addEventListener('mousedown', (e) => {
     }
     
     if (state.currentTool === 'text') {
+        // Check if clicking on existing text object to edit it
+        const textIdx = getTextAt(e.clientX - rect.left, e.clientY - rect.top);
+        const isEditing = textIdx >= 0;
+        
         // Create simple text input modal
         const backdrop = document.createElement('div');
         backdrop.style.cssText = `
@@ -1968,13 +2418,16 @@ canvas.addEventListener('mousedown', (e) => {
         `;
         modal.id = 'textInputModal';
         
+        const currentText = isEditing ? state.textObjects[textIdx].text : '';
+        const labelText = isEditing ? 'Edit text (press Enter to confirm):' : 'Enter text (press Enter to confirm):';
+        
         modal.innerHTML = `
-            <p style="margin: 0 0 12px 0; color: var(--text);">Enter text (press Enter to confirm):</p>
+            <p style="margin: 0 0 12px 0; color: var(--text);">${labelText}</p>
             <input id="textInputField" type="text" placeholder="Type text..." style="
                 width: 100%; padding: 10px; font-size: 14px; border: 1px solid var(--border);
                 border-radius: 4px; box-sizing: border-box; color: var(--text);
                 background: var(--surface-light);
-            " />
+            " value="${currentText}" />
         `;
         
         document.body.appendChild(backdrop);
@@ -1992,14 +2445,20 @@ canvas.addEventListener('mousedown', (e) => {
         function finishText() {
             const text = input.value.trim();
             if (text) {
-                state.textObjects.push({
-                    x: x,
-                    y: y,
-                    text: text,
-                    fontSize: 14,
-                    color: '#000000',
-                    rotation: 0
-                });
+                if (isEditing) {
+                    // Edit existing text
+                    state.textObjects[textIdx].text = text;
+                } else {
+                    // Create new text
+                    state.textObjects.push({
+                        x: x,
+                        y: y,
+                        text: text,
+                        fontSize: 14,
+                        color: '#000000',
+                        rotation: 0
+                    });
+                }
                 pushHistory();
                 saveState();
             }
@@ -2045,6 +2504,12 @@ canvas.addEventListener('mousemove', (e) => {
     
     state.currentMouseX = e.clientX - rect.left;
     state.currentMouseY = e.clientY - rect.top;
+
+    // If dragging a student on the canvas, update visuals
+    if (state.draggingStudentOnCanvas && state.draggingStudentFrom) {
+        redrawCanvas();
+        return;
+    }
     
     if (state.panStart) {
         state.pan.x = state.panStart.panX + (e.clientX - state.panStart.x) / state.scale;
@@ -2120,6 +2585,39 @@ canvas.addEventListener('mouseup', (e) => {
     const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) / state.scale - state.pan.x;
     const y = (e.clientY - rect.top) / state.scale - state.pan.y;
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+
+    // Handle dropping a student dragged on canvas
+    if (state.draggingStudentFrom && state.draggingStudentOnCanvas) {
+        const from = state.draggingStudentFrom;
+        const toTableIdx = getTableAt(x, y);
+        if (toTableIdx >= 0) {
+            if (from.tableIdx !== toTableIdx) {
+                // Find the student by id in the original table (index may have shifted)
+                const fromTable = state.tables[from.tableIdx];
+                if (fromTable) {
+                    const si = fromTable.students.findIndex(s => s.id === from.studentId);
+                    if (si >= 0) {
+                        const student = fromTable.students.splice(si, 1)[0];
+                        if (student) {
+                            state.tables[toTableIdx].students.push(student);
+                            pushHistory();
+                            saveState();
+                            saveSeatingPlan();
+                            renderSeatingPlan();
+                            redrawCanvas();
+                        }
+                    }
+                }
+            }
+        }
+        state.draggingStudentFrom = null;
+        state.draggingStudentOnCanvas = false;
+        state.dragGhostOffset = null;
+        canvas.style.cursor = 'crosshair';
+        return;
+    }
     
     // Push history for completed operations (drag, rotate, scale)
     if (state.draggingTableIndex >= 0 || state.draggingTextIndex >= 0 || 
@@ -2192,9 +2690,12 @@ canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
 document.addEventListener('keydown', (e) => {
     if (e.code === 'Space') {
-        e.preventDefault();
-        state.spacePressed = true;
-        canvas.style.cursor = 'grab';
+        // Don't prevent default if user is typing in a text input
+        if (!state.isTyping) {
+            e.preventDefault();
+            state.spacePressed = true;
+            canvas.style.cursor = 'grab';
+        }
     }
     
     // Undo (Ctrl+Z)
@@ -2316,17 +2817,43 @@ if (bulkAddBtn) {
         modal.querySelector('#bulkAddCancel').addEventListener('click', closeModal);
         
         modal.querySelector('#bulkAddConfirm').addEventListener('click', async () => {
-            const textNames = textarea.value.split(/[\s,\n]+/).filter(n => n.trim().length > 0);
-            textNames.forEach(name => addStudent(name.trim()));
+            // Process text input - split on newlines or commas, preserve spaces within names
+            let text = textarea.value;
+            let names = [];
+            if (text.includes(',')) {
+                // If comma separated, split by comma
+                names = text.split(',').map(n => n.trim()).filter(n => n.length > 0);
+            } else {
+                // Otherwise, split by newlines
+                names = text.split(/\r?\n/).map(n => n.trim()).filter(n => n.length > 0);
+            }
+            names.forEach(name => addStudent(name));
             
             if (fileInput.files[0]) {
                 const file = fileInput.files[0];
                 const text = await file.text();
-                const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
-                lines.forEach(line => {
-                    const name = line.trim();
-                    if (name && name.length > 0) addStudent(name);
-                });
+                
+                if (file.name.toLowerCase().endsWith('.csv')) {
+                    // Parse CSV format
+                    const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
+                    lines.forEach(line => {
+                        const columns = line.split(',').map(col => col.trim());
+                        if (columns.length >= 2) {
+                            // Combine first and last name with space
+                            const name = `${columns[0]} ${columns[1]}`;
+                            if (name.trim().length > 0) addStudent(name);
+                        } else if (columns.length === 1 && columns[0].trim().length > 0) {
+                            addStudent(columns[0]);
+                        }
+                    });
+                } else {
+                    // TXT file - one name per line, preserve spaces
+                    const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0);
+                    lines.forEach(line => {
+                        const name = line.trim();
+                        if (name && name.length > 0) addStudent(name);
+                    });
+                }
             }
             
             closeModal();
@@ -2371,10 +2898,19 @@ if (bucketToolBtn) {
     });
 }
 
+// Drag names tool button
+const dragNamesToolBtn = document.getElementById('dragNamesToolBtn');
+if (dragNamesToolBtn) {
+    dragNamesToolBtn.addEventListener('click', () => {
+        selectTool('dragnames', 'Drag Names');
+        canvas.style.cursor = 'grab';
+    });
+}
+
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
-    // Only process shortcuts when not typing in an input
-    const isTyping = document.activeElement.tagName === 'INPUT' && document.activeElement.type === 'text';
+    // Only process shortcuts when not typing in an input or textarea
+    const isTyping = (document.activeElement.tagName === 'INPUT' && document.activeElement.type === 'text') || document.activeElement.tagName === 'TEXTAREA';
     if (isTyping) return;
     
     // Prevent tool selection when Ctrl+C is pressed (copy command)
@@ -2393,6 +2929,7 @@ document.addEventListener('keydown', (e) => {
         'r': 'rotate', 'R': 'rotate',
         'b': 'scale', 'B': 'scale',
         'p': 'bucket', 'P': 'bucket',
+        'n': 'dragnames', 'N': 'dragnames',
     };
     
     // Check if currently in text input mode
@@ -2417,6 +2954,8 @@ document.addEventListener('keydown', (e) => {
         else if (tool === 'scale') canvas.style.cursor = 'nwse-resize';
         else if (tool === 'delete') canvas.style.cursor = 'pointer';
         else canvas.style.cursor = 'crosshair';
+        // Recompute contrast after keyboard-driven tool change
+        if (typeof updateContrastForAll === 'function') updateContrastForAll();
     }
     
     // Delete/Backspace to delete selection
@@ -2462,3 +3001,4 @@ if (state.classes.length > 0) {
     selectClass(state.classes[0].id);
 }
 updateUI();
+

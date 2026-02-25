@@ -3,12 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tools4Teach</title>
+    <title>tools4teaching.online</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Sidebar -->
+    <div class="floating-toolbar">
+        <button id="exportPngBtn" class="toolbar-item export-seating-only" title="Export as PNG&#10;Save your seating plan as an image">🖼️</button>
+        <button id="saveSeatingBtn" class="toolbar-item export-seating-only" title="Save Seating&#10;Save your current seating arrangement">💾</button>
+        <button id="exportLayoutBtn" class="toolbar-item export-seating-only" title="Export Layout&#10;Download your layout as JSON">⬇️</button>
+        <button id="importLayoutBtn" class="toolbar-item export-seating-only" title="Import Layout&#10;Load a previously saved layout">⬆️</button>
+        <button id="buyCoffeeBtn" class="toolbar-item" title="Buy Me Coffee&#10;Support development">☕</button>
+        <div class="toolbar-divider"></div>
+        <button class="toolbar-item" onclick="menuSelectTab('seating-plan')" title="Seating Plan&#10;Design your room layout">📋</button>
+        <button class="toolbar-item" onclick="menuSelectTab('groups-wheel')" title="Groups & Wheel&#10;Create groups and spin wheel">🎡</button>
+        <button id="themeMenuBtn" class="toolbar-item hamburger-menu" title="Themes&#10;Choose your UI theme" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:6px;border:1px solid var(--border);background:transparent;font-size:20px;">
+            ⚙️
+        </button>
+    </div>
+
+    <div id="sideMenu" class="side-menu"></div>
+
+    <div class="tab-wrapper">
+        <div class="tab-content active" id="seating-plan-tab">
+            <div class="container">
         <aside class="sidebar">
             <div class="sidebar-section">
                 <div style="display: flex; justify-content: space-between; align-items: center;" class="section-header" onclick="toggleSection(this)">
@@ -46,44 +63,61 @@
 
             <div class="sidebar-section">
                 <div style="display: flex; justify-content: space-between; align-items: center;" class="section-header" onclick="toggleSection(this)">
+                    <h2 style="margin: 0; flex: 1;">Constraints</h2>
+                    <span class="section-toggle">−</span>
+                </div>
+                <div class="section-content">
+                    <div class="constraint-buttons">
+                        <button id="addSeparateBtn" class="constraint-type-btn active">↔️ Separate</button>
+                        <button id="addTogetherBtn" class="constraint-type-btn">↔️ Together</button>
+                    </div>
+                    <div id="constraintsList" class="constraints-list"></div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div style="display: flex; justify-content: space-between; align-items: center;" class="section-header" onclick="toggleSection(this)">
                     <h2 style="margin: 0; flex: 1;">Tools</h2>
                     <span class="section-toggle">−</span>
                 </div>
                 <div class="section-content">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <label style="font-size: 11px; color: var(--text-muted); margin-right: 4px;">Color:</label>
-                        <button id="colorPickerBtn" style="width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border); background-color: #ef4444; cursor: pointer; padding: 0;" title="Choose color"></button>
+                        <button id="colorPickerBtn" style="width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border); background-color: #ef4444; cursor: pointer; padding: 0;"></button>
                     </div>
                     <div class="tools-group">
-                        <button id="squareToolBtn" class="tool-btn active" data-tool="square" title="Square (S)">
+                        <button id="squareToolBtn" class="tool-btn active" data-tool="square" title="Square - Press [S]&#10;Draw rectangular tables">
                             ◻️ Square
                         </button>
-                        <button id="circleToolBtn" class="tool-btn" data-tool="circle" title="Circle (C)">
+                        <button id="circleToolBtn" class="tool-btn" data-tool="circle" title="Circle - Press [C]&#10;Draw circular tables">
                             🔵 Circle
                         </button>
-                        <button id="moveToolBtn" class="tool-btn" data-tool="move" title="Move (M)">
+                        <button id="moveToolBtn" class="tool-btn" data-tool="move" title="Move - Press [M]&#10;Drag tables to reposition">
                             ↔️ Move
                         </button>
-                        <button id="duplicateToolBtn" class="tool-btn" data-tool="duplicate" title="Duplicate (D)">
+                        <button id="duplicateToolBtn" class="tool-btn" data-tool="duplicate" title="Duplicate - Press [D]&#10;Copy and paste tables">
                             📋 Duplicate
                         </button>
-                        <button id="handToolBtn" class="tool-btn" data-tool="hand" title="Hand (H)">
+                        <button id="handToolBtn" class="tool-btn" data-tool="hand" title="Hand - Press [H]&#10;Pan and zoom the canvas">
                             ✋ Hand
                         </button>
-                        <button id="deleteToolBtn" class="tool-btn" data-tool="delete" title="Delete (G)">
+                        <button id="deleteToolBtn" class="tool-btn" data-tool="delete" title="Delete - Press [G]&#10;Remove selected tables">
                             ❌ Delete
                         </button>
-                        <button id="textToolBtn" class="tool-btn" data-tool="text" title="Text (T)">
+                        <button id="textToolBtn" class="tool-btn" data-tool="text" title="Text - Press [T]&#10;Add labels and text">
                             📝 Text
                         </button>
-                        <button id="rotateToolBtn" class="tool-btn" data-tool="rotate" title="Rotate (R)">
+                        <button id="rotateToolBtn" class="tool-btn" data-tool="rotate" title="Rotate - Press [R]&#10;Rotate tables">
                             🔄 Rotate
                         </button>
-                        <button id="scaleToolBtn" class="tool-btn" data-tool="scale" title="Scale (B)">
+                        <button id="scaleToolBtn" class="tool-btn" data-tool="scale" title="Scale - Press [B]&#10;Resize tables">
                             📐 Scale
                         </button>
-                        <button id="bucketToolBtn" class="tool-btn" data-tool="bucket" title="Paint Bucket (P)">
+                        <button id="bucketToolBtn" class="tool-btn" data-tool="bucket" title="Bucket - Press [P]&#10;Fill table colors">
                             🪣 Bucket
+                        </button>
+                        <button id="dragNamesToolBtn" class="tool-btn" data-tool="dragnames" title="Drag Names - Press [N]&#10;Drag student names on canvas to move them between tables">
+                            🔀 Drag Names
                         </button>
                     </div>
                 </div>
@@ -112,24 +146,20 @@
 
             <div class="sidebar-section">
                 <div style="display: flex; justify-content: space-between; align-items: center;" class="section-header" onclick="toggleSection(this)">
-                    <h2 style="margin: 0; flex: 1;">Constraints</h2>
-                    <span class="section-toggle">−</span>
-                </div>
-                <div class="section-content">
-                    <div class="constraint-buttons">
-                        <button id="addSeparateBtn" class="constraint-type-btn active">↔️ Separate</button>
-                        <button id="addTogetherBtn" class="constraint-type-btn">↔️ Together</button>
-                    </div>
-                    <div id="constraintsList" class="constraints-list"></div>
-                </div>
-            </div>
-
-            <div class="sidebar-section">
-                <div style="display: flex; justify-content: space-between; align-items: center;" class="section-header" onclick="toggleSection(this)">
                     <h2 style="margin: 0; flex: 1;">Seating</h2>
                     <span class="section-toggle">−</span>
                 </div>
                 <div class="section-content">
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted);">
+                            <input type="checkbox" id="alphabeticalSeating" style="margin: 0;" />
+                            Alphabetical seating
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); margin-top: 8px;">
+                            <input type="checkbox" id="evenDistribution" style="margin: 0;" />
+                            Even distribution
+                        </label>
+                    </div>
                     <button id="generateSeatingBtn" class="primary-btn" style="display: none;">
                         Generate Seating
                     </button>
@@ -148,26 +178,228 @@
                     <span class="section-toggle">−</span>
                 </div>
                 <div class="section-content">
-                    <button id="copySeatingBtn" class="export-btn" title="Copy seating plan to clipboard" style="width: 100%; margin-bottom: 8px; font-size: 14px;">📋 Copy Plan</button>
-                    <p style="font-size: 11px; color: var(--text-muted); margin: 6px 0; text-align: center;">💡 Drag students to move them between tables</p>
+                    <button id="copySeatingBtn" class="export-btn" style="width: 100%; margin-bottom: 8px; font-size: 14px;">📋 Copy Plan</button>
                     <div id="seatingPlan" class="seating-plan"></div>
                 </div>
             </div>
         </aside>
 
-        <!-- Main Canvas Area -->
         <main class="main-content">
-            <button id="helpBtn" title="FAQ and Help" style="position: fixed; bottom: 20px; right: 20px; width: 40px; height: 40px; border-radius: 50%; background-color: var(--primary); color: white; border: none; font-size: 20px; cursor: pointer; z-index: 100; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">?</button>
-            <div class="canvas-controls">
-                <button id="exportPngBtn" class="export-btn" title="Export seating plan as PNG">🖼️ Export Image</button>
-                <button id="saveSeatingBtn" class="export-btn" title="Save seating plan" style="margin-left: 8px;">💾 Save</button>
-                <button id="exportLayoutBtn" class="export-btn" title="Export layout as JSON" style="margin-left: 8px;">⬇️ Export Layout</button>
-                <button id="importLayoutBtn" class="export-btn" title="Import layout from JSON" style="margin-left: 8px;">⬆️ Import Layout</button>
-            </div>
             <canvas id="canvas"></canvas>
+
+            <!-- Corner controls: zoom and FAQ -->
+            <div class="corner-controls">
+                <button id="zoomInBtn" class="corner-btn" title="Zoom in">＋</button>
+                <button id="zoomOutBtn" class="corner-btn" title="Zoom out">－</button>
+                <button id="faqBtn" class="corner-faq" title="FAQ / Help">?</button>
+            </div>
         </main>
+            </div>
+        </div>
+
+        <div class="tab-content" id="groups-wheel-tab">
+            <div class="groups-container">
+                <aside class="groups-sidebar">
+                    <div class="groups-section">
+                        <h3>Class Selection</h3>
+                        <select id="classSelect" class="class-dropdown">
+                            <option value="">Select a class...</option>
+                        </select>
+                        <button id="refreshClassesBtn" class="refresh-btn">🔄 Refresh</button>
+                    </div>
+
+                    <div class="groups-section">
+                        <h3>Available Students</h3>
+                        <div id="studentsList" class="students-list"></div>
+                    </div>
+
+                    <div class="groups-section">
+                        <h3>Constraints</h3>
+                        <div id="groupsConstraintsList" class="constraints-list"></div>
+                    </div>
+
+                    <div class="groups-section">
+                        <h3>Tools</h3>
+                        <div class="tool-buttons">
+                            <button id="createGroupsBtn" class="action-btn">➕ Create Groups</button>
+                            <button id="spinWheelBtn" class="action-btn wheel-btn">🎡 Spin Wheel</button>
+                        </div>
+                    </div>
+                </aside>
+
+                <main class="groups-main">
+                    <div class="panel" id="createGroupsPanel" style="display: none;">
+                        <h2>Create Groups</h2>
+                        <div class="panel-content">
+                            <div class="form-group">
+                                <label for="groupSize">Group Size:</label>
+                                <div class="size-input-group">
+                                    <input type="number" id="groupSize" min="1" max="20" value="4" step="1" />
+                                    <button id="applyGroupSizeBtn" class="apply-btn">Apply</button>
+                                </div>
+                            </div>
+
+                            <div style="margin-bottom: 15px;">
+                                <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted);">
+                                    <input type="checkbox" id="applyConstraintsToGroups" style="margin: 0;" />
+                                    Apply seating constraints
+                                </label>
+                            </div>
+
+                            <div id="groupsDisplay" class="groups-display"></div>
+
+                            <div class="panel-actions">
+                                <button id="regenerateGroupsBtn" class="action-btn secondary">🔄 Regenerate</button>
+                                <button id="exportGroupsBtn" class="action-btn secondary">📋 Export Groups</button>
+                                <button id="backFromGroupsBtn" class="action-btn">← Back</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Spin Wheel Panel -->
+                    <div class="panel" id="spinWheelPanel" style="display: none;">
+                        <h2 style="text-align: center;">🎡 Spin the Wheel</h2>
+                        <div class="panel-content">
+                            <div class="wheel-container">
+                                <canvas id="wheelCanvas"></canvas>
+                                <button id="spinBtn" class="spin-btn">🎡 SPIN!</button>
+                            </div>
+
+                            <div id="wheelResult" class="wheel-result" style="display: none;">
+                                <h3>Selected Student</h3>
+                                <p id="selectedStudentName" class="selected-name"></p>
+                                <button id="removeFromWheelBtn" class="action-btn secondary" style="margin-top: 8px;">❌ Remove from Wheel</button>
+                                <button id="spinAgainBtn" class="action-btn">🎡 Spin Again</button>
+                                <button id="backFromWheelBtn" class="action-btn">← Back</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="emptyState" class="empty-state">
+                        <div class="empty-icon">📚</div>
+                        <h2>Select a tool to get started</h2>
+                        <p>Choose "Create Groups" or "Spin Wheel" from the left sidebar</p>
+                    </div>
+                </main>
+            </div>
+        </div>
     </div>
 
+    <div id="themeMenu" style="display:none;position:fixed;top:70px;right:30px;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,0.12);padding:16px;min-width:180px;">
+        <div style="font-weight:bold;margin-bottom:10px;">Choose Theme (BETA)</div>
+        <button class="theme-option" data-theme="theme-light" style="width:100%;margin-bottom:6px;">☀️ Light Mode</button>
+        <button class="theme-option" data-theme="theme-dark" style="width:100%;margin-bottom:6px;">🌙 Dark Mode</button>
+        <button class="theme-option" data-theme="theme-desert" style="width:100%;margin-bottom:6px;">🐫 Desert</button>
+            <button class="theme-option" data-theme="theme-cottage" style="width:100%;margin-bottom:6px;">🍵 Matcha</button>
+            <button class="theme-option" data-theme="theme-cherryblossom" style="width:100%;margin-bottom:6px;">🌸 Cherry Blossom</button>
+    </div>
     <script src="script.js"></script>
+    <script src="groups-script.js"></script>
+    <script>
+    // Hamburger theme menu logic
+    const themeMenuBtn = document.getElementById('themeMenuBtn');
+    const themeMenu = document.getElementById('themeMenu');
+    
+    // Load theme from localStorage on page load (default: light mode)
+    function loadTheme() {
+        const savedTheme = localStorage.getItem('selectedTheme') || 'theme-light';
+        document.body.className = savedTheme;
+        // Update canvas and contrast immediately for the loaded theme
+        if (typeof redrawCanvas === 'function') redrawCanvas();
+        if (typeof updateContrastForAll === 'function') updateContrastForAll();
+    }
+    
+    // Save theme to localStorage
+    function saveTheme(theme) {
+        localStorage.setItem('selectedTheme', theme);
+    }
+    
+    // Load theme on page load
+    loadTheme();
+    
+    themeMenuBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        themeMenu.style.display = themeMenu.style.display === 'none' ? 'block' : 'none';
+    });
+    document.querySelectorAll('.theme-option').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const theme = btn.dataset.theme;
+            document.body.className = theme;
+            saveTheme(theme);
+            themeMenu.style.display = 'none';
+            // Apply theme changes immediately to canvas and UI contrast
+            if (typeof redrawCanvas === 'function') redrawCanvas();
+            if (typeof updateContrastForAll === 'function') updateContrastForAll();
+        });
+    });
+    document.addEventListener('click', function(e) {
+        if (!themeMenu.contains(e.target) && e.target !== themeMenuBtn) {
+            themeMenu.style.display = 'none';
+        }
+    });
+    
+    // Tooltip handler: create custom tooltip and temporarily remove native `title`
+    let tooltipTimeout;
+    document.addEventListener('mouseenter', function(e) {
+        // ensure we have an Element (text nodes may be targets)
+        let targetEl = e.target;
+        if (!(targetEl instanceof Element)) targetEl = targetEl.parentElement;
+        if (!targetEl || !targetEl.title) return;
+
+        // store and remove native title immediately to prevent browser tooltip
+        targetEl.dataset._origTitle = targetEl.title;
+        targetEl.removeAttribute('title');
+
+        clearTimeout(tooltipTimeout);
+        tooltipTimeout = setTimeout(() => {
+            // only create tooltip if original title exists
+            const text = targetEl.dataset._origTitle;
+            if (!text) return;
+
+            // remove any previous tooltip for safety
+            if (targetEl._tooltip) {
+                try { targetEl._tooltip.remove(); } catch {}
+                targetEl._tooltip = null;
+            }
+
+            const tooltip = document.createElement('div');
+            tooltip.className = 'tooltip-popup';
+            tooltip.textContent = text;
+            document.body.appendChild(tooltip);
+
+            const rect = targetEl.getBoundingClientRect();
+            // position tooltip: prefer above, but if not enough space (or floating toolbar), place below
+            tooltip.style.left = (rect.left + rect.width/2 - tooltip.offsetWidth/2) + 'px';
+            const spaceAbove = rect.top;
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const preferBelow = targetEl.closest && targetEl.closest('.floating-toolbar');
+            if (preferBelow || spaceAbove < tooltip.offsetHeight + 12 && spaceBelow > tooltip.offsetHeight + 12) {
+                tooltip.style.top = (rect.bottom + 8) + 'px';
+            } else {
+                tooltip.style.top = (rect.top - tooltip.offsetHeight - 8) + 'px';
+            }
+
+            targetEl._tooltip = tooltip;
+        }, 500);
+    }, true);
+
+    document.addEventListener('mouseleave', function(e) {
+        clearTimeout(tooltipTimeout);
+        // remove tooltip from the nearest element if present and restore native title
+        let targetEl = e.target;
+        if (!(targetEl instanceof Element)) targetEl = targetEl.parentElement;
+        if (!targetEl) return;
+
+        if (targetEl._tooltip) {
+            try { targetEl._tooltip.remove(); } catch {}
+            targetEl._tooltip = null;
+        }
+
+        if (targetEl.dataset._origTitle) {
+            targetEl.title = targetEl.dataset._origTitle;
+            delete targetEl.dataset._origTitle;
+        }
+    }, true);
+    </script>
 </body>
 </html>
