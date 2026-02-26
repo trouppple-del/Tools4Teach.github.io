@@ -2790,7 +2790,7 @@ if (bulkAddBtn) {
         
         modal.innerHTML = `
             <h3 style="color: var(--text); margin-bottom: 15px;">Bulk Add Students</h3>
-            <label style="color: var(--text-muted); font-size: 12px; display: block; margin-bottom: 8px;">Paste names (space or comma separated):</label>
+            <label style="color: var(--text-muted); font-size: 12px; display: block; margin-bottom: 8px;">Paste names (comma separated):</label>
             <textarea id="bulkTextArea" style="width: 100%; height: 100px; padding: 8px; background-color: var(--surface-light); border: 1px solid var(--border); border-radius: 6px; color: var(--text); margin-bottom: 15px; font-family: monospace; font-size: 13px; resize: none;"></textarea>
             
             <label style="color: var(--text-muted); font-size: 12px; display: block; margin-bottom: 8px;">Or upload file (.txt, .csv):</label>
@@ -2807,6 +2807,14 @@ if (bulkAddBtn) {
         
         const textarea = modal.querySelector('#bulkTextArea');
         const fileInput = modal.querySelector('#bulkFileInput');
+        
+        // Allow spaces in the textarea
+        textarea.addEventListener('focus', () => {
+            state.isTyping = true;
+        });
+        textarea.addEventListener('blur', () => {
+            state.isTyping = false;
+        });
         
         const closeModal = () => {
             backdrop.remove();
@@ -2971,6 +2979,59 @@ document.addEventListener('keydown', (e) => {
 
 resizeCanvas();
 loadState();
+
+// Set up event listeners for class and student name inputs
+document.getElementById('classNameInput')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        const name = e.target.value.trim();
+        if (name) {
+            createClass(name);
+            e.target.value = '';
+        }
+    }
+});
+
+document.getElementById('classNameInput')?.addEventListener('focus', () => {
+    state.isTyping = true;
+});
+
+document.getElementById('classNameInput')?.addEventListener('blur', () => {
+    state.isTyping = false;
+});
+
+document.getElementById('newClassBtn')?.addEventListener('click', () => {
+    const classNameInput = document.getElementById('classNameInput');
+    const name = classNameInput.value.trim();
+    if (name) {
+        createClass(name);
+        classNameInput.value = '';
+    }
+});
+
+document.getElementById('studentNameInput')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        document.getElementById('addStudentBtn')?.click();
+    }
+});
+
+document.getElementById('studentNameInput')?.addEventListener('focus', () => {
+    state.isTyping = true;
+});
+
+document.getElementById('studentNameInput')?.addEventListener('blur', () => {
+    state.isTyping = false;
+});
+
+document.getElementById('addStudentBtn')?.addEventListener('click', () => {
+    const studentNameInput = document.getElementById('studentNameInput');
+    const name = studentNameInput.value.trim();
+    if (name && state.currentClass) {
+        addStudent(name);
+        studentNameInput.value = '';
+    } else if (!state.currentClass) {
+        alert('Please select a class first');
+    }
+});
 
 // Collapsible sections functionality
 function toggleSection(headerElement) {
