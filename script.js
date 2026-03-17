@@ -2160,9 +2160,10 @@ if (importLayoutBtn) {
 }
 
 const buyCoffeeBtn = document.getElementById('buyCoffeeBtn');
+
 if (buyCoffeeBtn) {
     buyCoffeeBtn.addEventListener('click', () => {
-        window.open('buymeacoffee.com/jambles', '_blank');
+        window.open('https://buymeacoffee.com/jambles', '_blank');
     });
 }
 
