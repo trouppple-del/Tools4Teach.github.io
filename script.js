@@ -2162,7 +2162,7 @@ if (importLayoutBtn) {
 const buyCoffeeBtn = document.getElementById('buyCoffeeBtn');
 if (buyCoffeeBtn) {
     buyCoffeeBtn.addEventListener('click', () => {
-        window.open('https://www.buymeacoffee.com/', '_blank');
+        window.open('buymeacoffee.com/jambles', '_blank');
     });
 }
 
