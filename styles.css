@@ -61,7 +61,6 @@ body {
     transform: rotate(-45deg) translate(8px, -8px);
 }
 
-/* Side Menu - Hidden */
 .side-menu {
     display: none;
 }
@@ -74,7 +73,6 @@ body {
     display: none;
 }
 
-/* Floating Toolbar */
 .floating-toolbar {
     position: fixed;
     top: 20px;
@@ -217,7 +215,6 @@ body {
     box-shadow: 0 2px 12px rgba(59, 130, 246, 0.2);
 }
 
-/* Export buttons disabled state */
 .menu-item.export-seating-only:disabled,
 .menu-item.export-seating-only.disabled {
     opacity: 0.4;
@@ -225,7 +222,6 @@ body {
     pointer-events: none;
 }
 
-/* Tab Wrapper */
 .tab-wrapper {
     flex: 1;
     overflow: hidden;
@@ -403,7 +399,6 @@ body {
 
 /* Buttons */
 
-/* Preferences button in student list */
 .prefs-btn {
     background: transparent;
     border: none;
@@ -412,7 +407,6 @@ body {
     padding: 4px;
 }
 
-/* Tool button active state: don't change background colors, just bold text */
 .tool-btn {
     background: transparent;
     border: 1px solid var(--border);
@@ -420,7 +414,6 @@ body {
     font-weight: 500;
 }
 
-/* Theme variable overrides for consistent appearance */
 body.theme-dark {
     --background: #0b1220;
     --surface: #071126;
@@ -688,7 +681,6 @@ button:active {
     text-align: center !important;
 }
 
-/* Disable CSS-based pseudo-tooltips so only the JS tooltip-popup is used */
 *[title]::before,
 *[title]::after,
 [data-tooltip]::before,
@@ -711,7 +703,6 @@ button:active {
 
 
 
-/* Constraint Type Buttons */
 .constraint-buttons {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -907,7 +898,6 @@ canvas.select-cursor {
     cursor: pointer;
 }
 
-/* Seating Student Drag Styling */
 .seating-student {
     transition: opacity 0.2s;
 }
@@ -967,7 +957,6 @@ canvas.select-cursor {
         height: 70vh;
     }
 }
-/* Groups & Wheel Styles */
 
 /* Groups Layout */
 .groups-container {
@@ -1496,7 +1485,6 @@ canvas.select-cursor {
   box-shadow: 0 0 18px rgba(96, 165, 250, 0.35);
 }
 
-/* Dark mode: tweak Groups & Wheel area for better contrast */
 .theme-dark .groups-sidebar,
 .theme-dark .groups-container,
 .theme-dark .groups-main {
@@ -1596,7 +1584,6 @@ body.theme-frutiger {
 }
 
 .theme-frutiger button[style*="rgb("] {
-    /* Preserve the element's inline background-color by not forcing a background or background-color here. */
     background-image: none !important;
     background-clip: padding-box !important;
     backdrop-filter: none !important;
@@ -1630,7 +1617,6 @@ body.theme-frutiger {
   transition: all 0.3s ease;
 }
 
-/* Preserve inline background-color styles - HIGHEST PRIORITY */
 *[style*="background-color"] {
   background-image: none !important;
   backdrop-filter: none !important;
@@ -1647,7 +1633,6 @@ body.theme-frutiger {
   box-shadow: none !important;
 }
 
-/* Force show true colors by reading the style attribute */
 button[style*="rgb("] {
   background-image: none !important;
   backdrop-filter: none !important;
@@ -1690,7 +1675,6 @@ button[style*="rgb("] {
   background: linear-gradient(180deg, #b7ecff, #e9faff) !important;
 }
 
-/* Bubble buttons - EXCLUDE buttons with rgb colors */
 .theme-frutiger .toolbar-item:not([style*="rgb("]),
 .theme-frutiger .menu-item:not([style*="rgb("]),
 .theme-frutiger button:not([style*="rgb("]) {
@@ -1821,7 +1805,6 @@ button[style*="rgb("] {
   border-radius: 12px;
 }
 
-/* data-contrast helpers set by JS (used instead of inline styles) */
 [data-contrast="white"] {
     color: white !important;
 }
@@ -1830,7 +1813,6 @@ button[style*="rgb("] {
     color: black !important;
 }
 
-/* Override data-contrast for active buttons to use theme colors */
 .toolbar-item.active[data-contrast],
 .menu-item.active[data-contrast],
 .tool-btn.active[data-contrast],
@@ -1839,7 +1821,6 @@ button[style*="rgb("] {
     color: var(--text-on-primary) !important;
 }
 
-/* Force specific controls to white text for clear visibility */
 #newClassBtn,
 #classNameInput,
 #addStudentBtn,
@@ -1847,14 +1828,11 @@ button[style*="rgb("] {
     color: white !important;
 }
 
-/* Also ensure placeholder text is visible when input color is forced white */
 #classNameInput::placeholder,
 #studentNameInput::placeholder {
     color: rgba(255,255,255,0.7) !important;
 }
 
-/* MASTER OVERRIDE: Force all active buttons to use theme text-on-primary color
-   This overrides data-contrast and any other competing rules */
 .toolbar-item.active,
 .menu-item.active,
 .tool-btn.active,
@@ -1863,30 +1841,24 @@ button[style*="rgb("] {
     color: var(--text-on-primary) !important;
 }
 
-/* Desert theme contrast tuning: orange => white text; yellow/light-orange => black text */
 .theme-desert .wheel-btn,
 .theme-desert .wheel-btn {
     color: white !important;
 }
 
-/* Buttons styled inline with the warning variable (yellow/light-orange) should use black text for readability */
 .theme-desert *[style*="var(--warning)"],
 .theme-desert *[style*="--warning"] {
     color: black !important;
 }
 
-/* Ensure export/copy buttons that use orange backgrounds get white text */
 .theme-desert .export-btn {
     color: white !important;
 }
 
-/* Theme-specific button contrast fixes */
-/* Frutiger: ensure export/copy button uses dark text for contrast */
 .theme-frutiger .export-btn {
     color: var(--text) !important;
 }
 
-/* Desert: orange actions should use white text; yellow-ish primary buttons use black */
 .theme-desert .export-btn,
 .theme-desert .wheel-btn {
     color: white !important;
@@ -1895,13 +1867,11 @@ button[style*="rgb("] {
     color: black !important;
 }
 
-/* User-requested overrides: make bulk add and clear canvas buttons white text */
 #bulkAddBtn,
 #clearCanvasBtn {
     color: white !important;
 }
 
-/* Ensure the class/student name text inputs are black (not white) */
 #classNameInput,
 #studentNameInput {
     color: black !important;
@@ -1910,7 +1880,6 @@ button[style*="rgb("] {
 #studentNameInput::placeholder {
     color: rgba(0,0,0,0.5) !important;
 }
-/* Corner zoom/faq controls */
 .corner-controls {
     position: absolute;
     right: 18px;
