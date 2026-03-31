@@ -296,25 +296,20 @@
     <script src="script.js"></script>
     <script src="groups-script.js"></script>
     <script>
-    // Hamburger theme menu logic
     const themeMenuBtn = document.getElementById('themeMenuBtn');
     const themeMenu = document.getElementById('themeMenu');
     
-    // Load theme from localStorage on page load (default: light mode)
     function loadTheme() {
         const savedTheme = localStorage.getItem('selectedTheme') || 'theme-light';
         document.body.className = savedTheme;
-        // Update canvas and contrast immediately for the loaded theme
         if (typeof redrawCanvas === 'function') redrawCanvas();
         if (typeof updateContrastForAll === 'function') updateContrastForAll();
     }
     
-    // Save theme to localStorage
     function saveTheme(theme) {
         localStorage.setItem('selectedTheme', theme);
     }
     
-    // Load theme on page load
     loadTheme();
     
     themeMenuBtn.addEventListener('click', function(e) {
@@ -327,7 +322,6 @@
             document.body.className = theme;
             saveTheme(theme);
             themeMenu.style.display = 'none';
-            // Apply theme changes immediately to canvas and UI contrast
             if (typeof redrawCanvas === 'function') redrawCanvas();
             if (typeof updateContrastForAll === 'function') updateContrastForAll();
         });
@@ -338,25 +332,20 @@
         }
     });
     
-    // Tooltip handler: create custom tooltip and temporarily remove native `title`
     let tooltipTimeout;
     document.addEventListener('mouseenter', function(e) {
-        // ensure we have an Element (text nodes may be targets)
         let targetEl = e.target;
         if (!(targetEl instanceof Element)) targetEl = targetEl.parentElement;
         if (!targetEl || !targetEl.title) return;
 
-        // store and remove native title immediately to prevent browser tooltip
         targetEl.dataset._origTitle = targetEl.title;
         targetEl.removeAttribute('title');
 
         clearTimeout(tooltipTimeout);
         tooltipTimeout = setTimeout(() => {
-            // only create tooltip if original title exists
             const text = targetEl.dataset._origTitle;
             if (!text) return;
 
-            // remove any previous tooltip for safety
             if (targetEl._tooltip) {
                 try { targetEl._tooltip.remove(); } catch {}
                 targetEl._tooltip = null;
@@ -368,7 +357,6 @@
             document.body.appendChild(tooltip);
 
             const rect = targetEl.getBoundingClientRect();
-            // position tooltip: prefer above, but if not enough space (or floating toolbar), place below
             tooltip.style.left = (rect.left + rect.width/2 - tooltip.offsetWidth/2) + 'px';
             const spaceAbove = rect.top;
             const spaceBelow = window.innerHeight - rect.bottom;
@@ -385,7 +373,6 @@
 
     document.addEventListener('mouseleave', function(e) {
         clearTimeout(tooltipTimeout);
-        // remove tooltip from the nearest element if present and restore native title
         let targetEl = e.target;
         if (!(targetEl instanceof Element)) targetEl = targetEl.parentElement;
         if (!targetEl) return;
